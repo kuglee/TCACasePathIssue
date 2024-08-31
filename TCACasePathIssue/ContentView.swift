@@ -5,11 +5,11 @@ import SwiftUI
   public init() {}
 
   @ObservableState public struct State: Equatable {
-    public var childStates: IdentifiedArrayOf<ChildFeature.State>
+    public var childStates: RemoteResult<IdentifiedArrayOf<ChildFeature.State>, AppError>
 
-    public init(childStates: IdentifiedArrayOf<ChildFeature.State> = []) {
-      self.childStates = childStates
-    }
+    public init(
+      childStates: RemoteResult<IdentifiedArrayOf<ChildFeature.State>, AppError> = .initial
+    ) { self.childStates = childStates }
   }
 
   public enum Action: Sendable { case childAction(IdentifiedActionOf<ChildFeature>) }
@@ -20,7 +20,9 @@ import SwiftUI
       case .childAction: return .none
       }
     }
-    .forEach(\.childStates, action: \.childAction) { ChildFeature() }
+    .ifLet(\.childStates.success, action: \.childAction) {
+      EmptyReducer().forEach(\.self, action: \.self) { ChildFeature() }
+    }
   }
 }
 
@@ -30,7 +32,9 @@ public struct AppView: View {
   public init(store: StoreOf<AppFeature>) { self.store = store }
 
   public var body: some View {
-    ForEach(self.store.scope(state: \.childStates, action: \.childAction)) { ChildView(store: $0) }
+    ForEach(self.store.scope(state: \.childStates.success, action: \.childAction)) {
+      ChildView(store: $0)
+    }
   }
 }
 
@@ -61,3 +65,5 @@ public struct ChildView: View {
 
   public var body: some View { EmptyView() }
 }
+
+public enum AppError: Equatable, Codable, Sendable, Error, LocalizedError { case unauthorized }
