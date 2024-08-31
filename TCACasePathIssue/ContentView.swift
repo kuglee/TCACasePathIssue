@@ -32,8 +32,8 @@ public struct AppView: View {
   public init(store: StoreOf<AppFeature>) { self.store = store }
 
   public var body: some View {
-    ForEach(self.store.scope(state: \.childStates.success, action: \.childAction)) {
-      ChildView(store: $0)
+    if let store = self.store.scope(state: \.childStates.success, action: \.childAction) {
+      ForEach(store) { ChildView(store: $0) }
     }
   }
 }
