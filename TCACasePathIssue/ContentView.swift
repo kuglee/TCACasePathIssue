@@ -5,11 +5,46 @@ import SwiftUI
   public init() {}
 
   @ObservableState public struct State: Equatable {
-    public var childStates: RemoteResult<IdentifiedArrayOf<ChildFeature.State>, AppError>
+    public var listState: RemoteResult<ListFeature.State, AppError>
 
-    public init(
-      childStates: RemoteResult<IdentifiedArrayOf<ChildFeature.State>, AppError> = .initial
-    ) { self.childStates = childStates }
+    public init(listState: RemoteResult<ListFeature.State, AppError> = .initial) {
+      self.listState = listState
+    }
+  }
+
+  public enum Action: Sendable { case listAction(ListFeature.Action) }
+
+  public var body: some ReducerOf<Self> {
+    Reduce { state, action in
+      switch action {
+      case .listAction: return .none
+      }
+    }
+    .ifLet(\.listState.success, action: \.listAction) { ListFeature() }
+  }
+}
+
+public struct AppView: View {
+  @Bindable var store: StoreOf<AppFeature>
+
+  public init(store: StoreOf<AppFeature>) { self.store = store }
+
+  public var body: some View {
+    if let store = self.store.scope(state: \.listState.success, action: \.listAction) {
+      ListView(store: store)
+    }
+  }
+}
+
+@Reducer public struct ListFeature: Sendable {
+  public init() {}
+
+  @ObservableState public struct State: Equatable {
+    public var childStates: IdentifiedArrayOf<ChildFeature.State>
+
+    public init(childStates: IdentifiedArrayOf<ChildFeature.State> = []) {
+      self.childStates = childStates
+    }
   }
 
   public enum Action: Sendable { case childAction(IdentifiedActionOf<ChildFeature>) }
@@ -20,21 +55,17 @@ import SwiftUI
       case .childAction: return .none
       }
     }
-    .ifLet(\.childStates.success, action: \.childAction) {
-      EmptyReducer().forEach(\.self, action: \.self) { ChildFeature() }
-    }
+    .forEach(\.childStates, action: \.childAction) { ChildFeature() }
   }
 }
 
-public struct AppView: View {
-  @Bindable var store: StoreOf<AppFeature>
+public struct ListView: View {
+  @Bindable var store: StoreOf<ListFeature>
 
-  public init(store: StoreOf<AppFeature>) { self.store = store }
+  public init(store: StoreOf<ListFeature>) { self.store = store }
 
   public var body: some View {
-    if let store = self.store.scope(state: \.childStates.success, action: \.childAction) {
-      ForEach(store) { ChildView(store: $0) }
-    }
+    ForEach(self.store.scope(state: \.childStates, action: \.childAction)) { ChildView(store: $0) }
   }
 }
 
